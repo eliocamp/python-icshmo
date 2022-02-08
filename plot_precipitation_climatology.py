@@ -53,6 +53,15 @@ def create_plot(clim, model, season, gridlines=False, levels = 1, bins = None):
     title = f'{model} precipitation climatology ({season})'
     plt.title(title)
 
+def apply_mask(data, mask, keep):
+    mask = xr.open_dataset(mask)['sftlf']
+
+    if keep == "ocean":
+        data = data.where(mask < 50)
+    else:
+        data = data.where(mask > 50)
+    return data
+
 
 def main(inargs):
     """Run the program."""
@@ -61,6 +70,9 @@ def main(inargs):
 
     clim = dset['pr'].groupby('time.season').mean('time', keep_attrs=True)
     clim = convert_pr_units(clim)
+
+    if inargs.mask:
+        clim = apply_mask(clim, inargs.mask[0], inargs.mask[1])
 
     create_plot(clim, dset.attrs['source_id'], inargs.season,
                 gridlines = inargs.grid, levels = inargs.levels, bins = inargs.bins)
@@ -84,6 +96,10 @@ if __name__ == '__main__':
     parser.add_argument("-b", "--bins", type = int,
                         help = "Number of bins. Overwrites --levels if not None.",
                         default = None)
+
+    parser.add_argument("--mask", type=str, nargs=2,
+                        metavar = ('sftl_file', 'realm'), default = None,
+                        help = """Provide sftlf file and realm to mask ('land' or 'ocean')""")
 
     args = parser.parse_args()
 
